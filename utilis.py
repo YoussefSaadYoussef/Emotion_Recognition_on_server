@@ -7,7 +7,8 @@ import numpy as np
 from keras.models import load_model
 from keras.preprocessing.image import img_to_array
 import imutils
-
+import keras.backend.tensorflow_backend as tb
+tb._SYMBOLIC_SCOPE.value = True
 
 def encode(img):
     encoded_string = base64.b64encode(img)
@@ -23,7 +24,7 @@ def decode(base64_string):
 
 
 
-def emotion_finder(image_path):
+def emotion_finder(img):
     
     # parameters for loading data and images
     detection_model_path = 'haarcascade_frontalface_default.xml'
@@ -35,8 +36,6 @@ def emotion_finder(image_path):
     emotion_classifier = load_model(emotion_model_path, compile=False)
     EMOTIONS = ["angry" ,"disgust","scared", "happy", "sad", "surprised",
      "neutral"]
-
-    img = cv2.imread(image_path)
     
     img = imutils.resize(img,width=400)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -51,36 +50,37 @@ def emotion_finder(image_path):
     # to classifiy image and get the prediction in label 
     
     if len(faces) > 0:
-        faces = sorted(faces, reverse=True, key=lambda x: (x[2] - x[0]) * (x[3] - x[1]))[0]
+        my_labels = []
+        for face in faces: 
+            (fX, fY, fW, fH) = face
+            # Extract the ROI of the face from the grayscale image, resize it to a fixed 48x48 pixels, and then prepare
+            # the ROI for classification via the CNN
+            roi = gray[fY:fY + fH, fX:fX + fW]
+            roi = cv2.resize(roi, (48, 48))
+            roi = roi.astype("float") / 255.0
+            roi = img_to_array(roi)
+            roi = np.expand_dims(roi, axis=0)
             
-        (fX, fY, fW, fH) = faces
-        # Extract the ROI of the face from the grayscale image, resize it to a fixed 48x48 pixels, and then prepare
-        # the ROI for classification via the CNN
-        roi = gray[fY:fY + fH, fX:fX + fW]
-        roi = cv2.resize(roi, (48, 48))
-        roi = roi.astype("float") / 255.0
-        roi = img_to_array(roi)
-        roi = np.expand_dims(roi, axis=0)
+            preds = emotion_classifier.predict(roi)[0]
+            emotion_probability = np.max(preds)
+            label = EMOTIONS[preds.argmax()]
+            my_labels.append(label)
+                    
+            for (i, (emotion, prob)) in enumerate(zip(EMOTIONS, preds)):
+            # construct the label text
+                text = "{}: {:.2f}%".format(emotion, prob * 100)
+                w = int(prob * 300)
+                cv2.rectangle(canvas, (7, (i * 35) + 5),
+                            (w, (i * 35) + 35), (0, 0, 255), -1)
+                cv2.putText(canvas, text, (10, (i * 35) + 23),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                        (255, 255, 255), 2)
+                cv2.putText(imgClone, label, (fX, fY - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+                cv2.rectangle(imgClone, (fX, fY), (fX + fW, fY + fH),
+                                             (0, 0, 255), 2)
     
-        preds = emotion_classifier.predict(roi)[0]
-        emotion_probability = np.max(preds)
-        label = EMOTIONS[preds.argmax()]
-            
-    for (i, (emotion, prob)) in enumerate(zip(EMOTIONS, preds)):
-        # construct the label text
-        text = "{}: {:.2f}%".format(emotion, prob * 100)
-        w = int(prob * 300)
-        cv2.rectangle(canvas, (7, (i * 35) + 5),
-                (w, (i * 35) + 35), (0, 0, 255), -1)
-        cv2.putText(canvas, text, (10, (i * 35) + 23),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.45,
-                (255, 255, 255), 2)
-        cv2.putText(imgClone, label, (fX, fY - 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
-        cv2.rectangle(imgClone, (fX, fY), (fX + fW, fY + fH),
-                                 (0, 0, 255), 2)
-    
-    return imgClone, [label]
+    return imgClone, my_labels
 
 def read_emotion(emotion):
     mytext = ""

@@ -21,7 +21,7 @@ def index2():
     img = decode(img)
 
     new_img, emotion = emotion_finder(img)
-    sound_bytes = read_names(emotion)
+    sound_bytes = read_emotion(emotion)
     data = {}
     data['img'] = new_img.tolist()
     data['sound'] = str(sound_bytes)

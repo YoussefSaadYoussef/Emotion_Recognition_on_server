@@ -5,13 +5,13 @@ import base64
 import matplotlib.image
 
 
-URL = "http://127.0.0.1:5000/photo"
-
-f = open('image.jpg', 'rb').read()
+URL = "https://emoml.herokuapp.com/photo"
+URL= "http://127.0.0.1:5000/photo"
+f = open('111.jpg', 'rb').read()
 f = str(base64.b64encode(f))
 f = f[2:len(f)-1]
 
-data = {"img": f, "name": "Shrook", "save": 1}
+data = {"img": f}
 
 headers = {'content-type': 'application/json'}
 
@@ -22,7 +22,7 @@ print("Response code is: ", r)
 data = r.json()
 print(data.keys())
 
-print(data['names'])
+print(data['emotions'])
 
 sound = data['sound']
 sound = sound[2:len(sound)-1]
